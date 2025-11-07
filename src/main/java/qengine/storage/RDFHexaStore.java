@@ -14,6 +14,15 @@ import java.util.*;
  * (Prédicat, Sujet, Objet), (Prédicat, Objet, Sujet), (Objet, Sujet, Prédicat) et (Objet, Prédicat, Sujet).
  */
 public class RDFHexaStore implements RDFStorage {
+
+    private final Map<String, Integer> termToId = new HashMap<>();
+    private final Map<Integer, String> IdToTerm = new HashMap<>();
+    private int nextId = 1;
+
+
+    private int encoder(String term) {
+        return termToId.computeIfAbsent();
+    }
     @Override
     public boolean add(RDFTriple triple) {
         throw new NotImplementedException();
