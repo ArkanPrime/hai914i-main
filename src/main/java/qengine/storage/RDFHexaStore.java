@@ -16,22 +16,54 @@ import java.util.*;
 public class RDFHexaStore implements RDFStorage {
 
     private final Map<String, Integer> termToId = new HashMap<>();
-    private final Map<Integer, String> IdToTerm = new HashMap<>();
+    private final Map<Integer, String> idToTerm = new HashMap<>();
     private int nextId = 1;
 
+    private final List<int[]> encodedTriples = new ArrayList<>();
+    private final List<RDFTriple> atoms = new ArrayList<>();
 
-    private int encoder(String term) {
-        return termToId.computeIfAbsent();
+
+    protected int encode(String term) {
+        return termToId.computeIfAbsent(term, t -> {
+            idToTerm.put(nextId, t);
+            return nextId++;
+        });
     }
+
+
+    protected String decode(int id) {
+        return idToTerm.get(id);
+    }
+
     @Override
     public boolean add(RDFTriple triple) {
-        throw new NotImplementedException();
+        int s = encode(triple.getTripleSubject().toString());
+        int p = encode(triple.getTriplePredicate().toString());
+        int o = encode(triple.getTripleObject().toString());
+
+        int[] encoded = new int[]{s, p, o};
+
+        // éviter les doublons, car pourraient nous gené/rendre faux plus tard
+        for (int[] t : encodedTriples) {
+            if (t[0] == s && t[1] == p && t[2] == o) {
+                return false;
+            }
+        }
+
+        encodedTriples.add(encoded);
+        atoms.add(triple);
+        return true;
     }
+
+
+
 
     @Override
     public long size() {
-        throw new NotImplementedException();
+        return atoms.size();
     }
+
+
 
     @Override
     public Iterator<Substitution> match(RDFTriple triple) {
@@ -50,6 +82,6 @@ public class RDFHexaStore implements RDFStorage {
 
     @Override
     public Collection<RDFTriple> getAtoms() {
-        throw new NotImplementedException();
+        return Collections.unmodifiableList(atoms);
     }
 }

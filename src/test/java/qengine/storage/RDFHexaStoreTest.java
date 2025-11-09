@@ -56,17 +56,100 @@ public class RDFHexaStoreTest {
 
     @Test
     public void testAddRDFAtom() {
-        throw new NotImplementedException();
+        // Création du store
+        RDFHexaStore store = new RDFHexaStore();
+
+        // Création d’un triplet RDF simple
+        var subject = SameObjectTermFactory.instance().createOrGetLiteral("Bob");
+        var predicate = SameObjectTermFactory.instance().createOrGetLiteral("knows");
+        var object = SameObjectTermFactory.instance().createOrGetLiteral("Alice");
+        RDFTriple triple = new RDFTriple(subject, predicate, object);
+
+        // Ajout du triplet
+        boolean added = store.add(triple);
+
+        // Vérifications
+        assertTrue(added, "Le triplet devrait être ajouté avec succès.");
+
+    }
+    @Test
+    public void testEncodeDecode() {
+        RDFHexaStore store = new RDFHexaStore();
+
+        // Encodage de plusieurs termes
+        int idBob1 = store.encode("Bob");
+        int idKnows = store.encode("knows");
+        int idAlice = store.encode("Alice");
+
+        // Le même terme doit donner le même ID
+        int idBob2 = store.encode("Bob");
+        assertEquals(idBob1, idBob2, "Le même terme 'Bob' doit avoir le même identifiant.");
+
+        // Les termes différents doivent avoir des IDs différents
+        assertNotEquals(idBob1, idKnows, "'Bob' et 'knows' doivent avoir des identifiants différents.");
+        assertNotEquals(idKnows, idAlice, "'knows' et 'Alice' doivent avoir des identifiants différents.");
+
+        // Le décodage doit renvoyer les termes originaux
+        assertEquals("Bob", store.decode(idBob1), "Le décodage doit retrouver 'Bob'.");
+        assertEquals("knows", store.decode(idKnows), "Le décodage doit retrouver 'knows'.");
+        assertEquals("Alice", store.decode(idAlice), "Le décodage doit retrouver 'Alice'.");
     }
 
     @Test
     public void testAddDuplicateAtom() {
-        throw new NotImplementedException();
+        RDFHexaStore store = new RDFHexaStore();
+
+        // Création d’un triplet RDF
+        var subject = SameObjectTermFactory.instance().createOrGetLiteral("Bob");
+        var predicate = SameObjectTermFactory.instance().createOrGetLiteral("knows");
+        var object = SameObjectTermFactory.instance().createOrGetLiteral("Alice");
+        RDFTriple triple = new RDFTriple(subject, predicate, object);
+
+        // Premier ajout
+        boolean added = store.add(triple);
+        assertTrue(added, "Le premier ajout du triplet doit réussir.");
+
+        // Deuxième ajout du même triplet
+        boolean addedAgain = store.add(triple);
+        assertFalse(addedAgain, "Le même triplet ne doit pas être ajouté deux fois.");
+
+
     }
 
     @Test
     public void testSize() {
-        throw new NotImplementedException();
+        RDFHexaStore store = new RDFHexaStore();
+
+        var factory = SameObjectTermFactory.instance();
+
+        // Création de plusieurs triplets RDF
+        RDFTriple t1 = new RDFTriple(
+                factory.createOrGetLiteral("Bob"),
+                factory.createOrGetLiteral("knows"),
+                factory.createOrGetLiteral("Alice")
+        );
+        RDFTriple t2 = new RDFTriple(
+                factory.createOrGetLiteral("Alice"),
+                factory.createOrGetLiteral("likes"),
+                factory.createOrGetLiteral("Music")
+        );
+        RDFTriple t3 = new RDFTriple(
+                factory.createOrGetLiteral("Bob"),
+                factory.createOrGetLiteral("likes"),
+                factory.createOrGetLiteral("Music")
+        );
+
+        // Ajout des triplets
+        store.add(t1);
+        store.add(t2);
+        store.add(t3);
+
+        // Vérifie que la taille est correcte
+        assertEquals(3, store.size(), "Le store doit contenir trois triplets.");
+
+        // Ajout d’un doublon : ne doit pas changer la taille
+        store.add(t1);
+        assertEquals(3, store.size(), "L’ajout d’un doublon ne doit pas modifier la taille.");
     }
 
     @Test

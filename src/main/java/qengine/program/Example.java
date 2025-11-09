@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public final class Example {
+public final class  Example {
 
 	private static final String WORKING_DIR = "data/";
 	private static final String SAMPLE_DATA_FILE = WORKING_DIR + "sample_data.nt";
