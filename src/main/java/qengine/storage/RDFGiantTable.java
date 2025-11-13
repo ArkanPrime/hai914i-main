@@ -8,27 +8,25 @@ import java.util.*;
 
 public class RDFGiantTable implements RDFStorage {
     private final Dictionary dict = new Dictionary();
-    private final List<int[]> encodedTriples = new ArrayList<>();
+    private final List<int[]> encoded = new ArrayList<>();
     private final List<RDFTriple> atoms = new ArrayList<>();
 
     @Override
-    public boolean add(RDFTriple triple) {
-        int s = dict.encode(triple.getTripleSubject().toString());
-        int p = dict.encode(triple.getTriplePredicate().toString());
-        int o = dict.encode(triple.getTripleObject().toString());
-
-        for (int[] t : encodedTriples)
-            if (t[0]==s && t[1]==p && t[2]==o) return false;
-
-        encodedTriples.add(new int[]{s,p,o});
-        atoms.add(triple);
+    public boolean add(RDFTriple t) {
+        int s = dict.encode(t.getTripleSubject().toString());
+        int p = dict.encode(t.getTriplePredicate().toString());
+        int o = dict.encode(t.getTripleObject().toString());
+        for (int[] e : encoded) if (e[0]==s && e[1]==p && e[2]==o) return false; // évite doublons
+        encoded.add(new int[]{s,p,o});
+        atoms.add(t);
         return true;
     }
 
     @Override public long size() { return atoms.size(); }
     @Override public Collection<RDFTriple> getAtoms() { return Collections.unmodifiableList(atoms); }
-    @Override public Iterator<Substitution> match(RDFTriple a){ throw new UnsupportedOperationException(); }
-    @Override public Iterator<Substitution> match(StarQuery q){ throw new UnsupportedOperationException(); }
-    @Override public long howMany(RDFTriple a){ throw new UnsupportedOperationException(); }
-}
 
+    // À faire plus tard
+    @Override public Iterator<Substitution> match(RDFTriple a) { throw new UnsupportedOperationException(); }
+    @Override public Iterator<Substitution> match(StarQuery q) { throw new UnsupportedOperationException(); }
+    @Override public long howMany(RDFTriple a) { throw new UnsupportedOperationException(); }
+}

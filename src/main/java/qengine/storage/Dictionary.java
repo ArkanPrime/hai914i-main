@@ -18,5 +18,8 @@ public final class Dictionary {
     }
 
     public String decode(int id) { return idToTerm.get(id); }
+
+
+
     public int size() { return termToId.size(); }
 }
