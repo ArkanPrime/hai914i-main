@@ -105,18 +105,18 @@ public class RDFHexaStore implements RDFStorage {
 
         if (!sVar && !pVar && oVar) {
             for (int o : getSet(SPO, sId, pId)) {
-                Substitution σ = new SubstitutionImpl();
-                σ.add((Variable) a.getTripleObject(), dict.decode(o));
-                out.add(σ);
+                Substitution sigma = new SubstitutionImpl();
+                sigma.add((Variable) a.getTripleObject(), dict.decode(o));
+                out.add(sigma);
             }
             return out.iterator();
         }
 
         if (sVar && !pVar && !oVar) {
             for (int s : getSet(POS, pId, oId)) {
-                Substitution σ = new SubstitutionImpl();
-                σ.add((Variable) a.getTripleSubject(), dict.decode(s));
-                out.add(σ);
+                Substitution sigma = new SubstitutionImpl();
+                sigma.add((Variable) a.getTripleSubject(), dict.decode(s));
+                out.add(sigma);
             }
             return out.iterator();
         }
@@ -124,9 +124,9 @@ public class RDFHexaStore implements RDFStorage {
         // ===== Cas (s,?p,o) =====
         if (!sVar && pVar && !oVar) {
             for (int p : getSet(SOP, sId, oId)) {
-                Substitution σ = new SubstitutionImpl();
-                σ.add((Variable) a.getTriplePredicate(), dict.decode(p));
-                out.add(σ);
+                Substitution sigma = new SubstitutionImpl();
+                sigma.add((Variable) a.getTriplePredicate(), dict.decode(p));
+                out.add(sigma);
             }
             return out.iterator();
         }
@@ -135,10 +135,10 @@ public class RDFHexaStore implements RDFStorage {
             for (var entry : getMap(SPO, sId).entrySet()) {
                 int p = entry.getKey();
                 for (int o : entry.getValue()) {
-                    Substitution σ = new SubstitutionImpl();
-                    σ.add((Variable) a.getTriplePredicate(), dict.decode(p));
-                    σ.add((Variable) a.getTripleObject(), dict.decode(o));
-                    out.add(σ);
+                    Substitution sigma = new SubstitutionImpl();
+                    sigma.add((Variable) a.getTriplePredicate(), dict.decode(p));
+                    sigma.add((Variable) a.getTripleObject(), dict.decode(o));
+                    out.add(sigma);
                 }
             }
             return out.iterator();
@@ -148,10 +148,10 @@ public class RDFHexaStore implements RDFStorage {
             for (var entry : getMap(PSO, pId).entrySet()) {
                 int s = entry.getKey();
                 for (int o : entry.getValue()) {
-                    Substitution σ = new SubstitutionImpl();
-                    σ.add((Variable) a.getTripleSubject(), dict.decode(s));
-                    σ.add((Variable) a.getTripleObject(), dict.decode(o));
-                    out.add(σ);
+                    Substitution sigma = new SubstitutionImpl();
+                    sigma.add((Variable) a.getTripleSubject(), dict.decode(s));
+                    sigma.add((Variable) a.getTripleObject(), dict.decode(o));
+                    out.add(sigma);
                 }
             }
             return out.iterator();
@@ -161,10 +161,10 @@ public class RDFHexaStore implements RDFStorage {
             for (var entry : getMap(OSP, oId).entrySet()) {
                 int s = entry.getKey();
                 for (int p : entry.getValue()) {
-                    Substitution σ = new SubstitutionImpl();
-                    σ.add((Variable) a.getTripleSubject(), dict.decode(s));
-                    σ.add((Variable) a.getTriplePredicate(), dict.decode(p));
-                    out.add(σ);
+                    Substitution sigma = new SubstitutionImpl();
+                    sigma.add((Variable) a.getTripleSubject(), dict.decode(s));
+                    sigma.add((Variable) a.getTriplePredicate(), dict.decode(p));
+                    out.add(sigma);
                 }
             }
             return out.iterator();
@@ -176,11 +176,11 @@ public class RDFHexaStore implements RDFStorage {
             if (pId != null && p != pId) continue;
             if (oId != null && o != oId) continue;
 
-            Substitution σ = new SubstitutionImpl();
-            if (sVar) σ.add((Variable) a.getTripleSubject(), dict.decode(s));
-            if (pVar) σ.add((Variable) a.getTriplePredicate(), dict.decode(p));
-            if (oVar) σ.add((Variable) a.getTripleObject(), dict.decode(o));
-            out.add(σ);
+            Substitution sigma = new SubstitutionImpl();
+            if (sVar) sigma.add((Variable) a.getTripleSubject(), dict.decode(s));
+            if (pVar) sigma.add((Variable) a.getTriplePredicate(), dict.decode(p));
+            if (oVar) sigma.add((Variable) a.getTripleObject(), dict.decode(o));
+            out.add(sigma);
         }
 
         return out.iterator();
