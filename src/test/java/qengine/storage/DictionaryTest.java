@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class DictionaryTest {
 
-    // ✅ déclare en type interface (ou utilise "var")
     private static final TermFactory F = SameObjectTermFactory.instance();
 
     private static final Literal<String> BOB   = F.createOrGetLiteral("Bob");
