@@ -42,17 +42,17 @@ Les étapes clé du projet sont sujet à la fois d'un rendu (rapport court de 3-
 Tous les membres du groupe doivent être présents et présenter le travail réalisé à l'encadrant.
 
 ## Rendus (dans Moodle)
-1. **Dictionnaire, index (Hexastore)** : rendu du code (pas de rapport) - **15 Novembre**.  
+1. **Dictionnaire, Giant-Table, index (Hexastore)** : rendu du code (pas de rapport) - **15 Novembre**.  
 2. **Évaluation des requêtes en étoile** : code + rapport (3 pages) - **29 Novembre**.  
 3. **Analyse des bancs d'essai et plan des tests à réaliser.** : déscription des tests **6 Décembre** 
 4. **Analyse des performances** : rapport (5 pages) - **13 Décembre**.
 5. **Document final** (10 pages + code) : **22 décembre** .
 
 ## Mini-soutenances / dates des évaluations en présentiel
-1. **Dictionnaire, index (Hexastore)** : **16 Novembre**.  
-2. **Évaluation des requêtes en étoile** :  **30 Novembre**.  
+1. **Dictionnaire, Giant-Table, index (Hexastore)** : **14 Novembre**.  
+2. **Évaluation des requêtes en étoile** :  **28 Novembre**.  
 3. **Analyse des bancs d'essai et plan des tests à réaliser** : **6 Décembre** 
-4. **Analyse des performances** :  **14 Décembre**.
+4. **Analyse des performances** :  **12 Décembre**.
 
 Après la dernière évaluation en présentiel, vous aurez une semaine supplémentaire pour apporter les dernières corrections et finaliser au mieux votre projet. Les améliorations apportées seront naturellement prises en compte dans la note finale.
 
@@ -218,8 +218,12 @@ L’accès aux données se fait par les structures de données mises en œuvre. 
 
 - **Lien avec le code :**  
   - Implémentez une méthode spécifique pour l’évaluation des requêtes en étoile.  
-  - Cette évaluation est utilisée par la méthode `match(StarQuery q)` de l’Hexastore.
+  - Cette évaluation est utilisée par la méthode `match(StarQuery q)` de l’Hexastore. 
+  Vous pouvez implémenter cela directement au niveau de l'interface `RDFStorage` afin qu'elle soit héritée par toutes les implémentations de cette interface (ici, Giant-Table et Hexastore).
+  [Interfaces vs Classes Abstraites](https://youtube.com/shorts/f5hKXYeJ90s?si=52wJmOGCTx0Ysago) [Default Methods](https://www.youtube.com/shorts/njx4t5faYQ0)
 
+- Connaissez vous les [value classes](https://www.youtube.com/watch?v=ViZkEgshiXI) ? Une fonctionnalité qu'on aimerait bien avoir pour que nos données soient mieux organisées en mémoire par Java, mais qu'il faudra attendre avec patience ([projet Valhalla](https://openjdk.org/projects/valhalla/), [overview](https://openjdk.org/projects/valhalla/value-objects), [JEP 401](https://openjdk.org/jeps/401)).
+- Êtes vous à jour avec Java ? Un petit résumé des [nouveautés](https://docs.oracle.com/en/java/javase/25/language/java-language-changes-summary.html#GUID-2DDE1B8C-79DC-4CCE-B6C9-860DF2D35533).
 ---
 
 ### Vérification de correction et complétude (rendu 29 Novembre)
