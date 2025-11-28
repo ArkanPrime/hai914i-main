@@ -169,4 +169,137 @@ class RDFGiantTableTest {
                 "La substitution attendue (?x -> subject1) doit être présente parmi les résultats.");
     }
 
+            @Test
+        public void testMatchStarQuery_MultipleSolutions() {
+        RDFHexaStore store = new RDFHexaStore();
+
+        // Données :
+        // s1 p1 o1
+        // s1 p2 o2
+        // s2 p1 o1
+        // s2 p2 o2
+        RDFTriple t1 = new RDFTriple(SUBJECT_1, PREDICATE_1, OBJECT_1);
+        RDFTriple t2 = new RDFTriple(SUBJECT_1, PREDICATE_2, OBJECT_2);
+        RDFTriple t3 = new RDFTriple(SUBJECT_2, PREDICATE_1, OBJECT_1);
+        RDFTriple t4 = new RDFTriple(SUBJECT_2, PREDICATE_2, OBJECT_2);
+
+        store.add(t1);
+        store.add(t2);
+        store.add(t3);
+        store.add(t4);
+
+        // StarQuery (centre ?x) :
+        // ?x p1 o1
+        // ?x p2 o2
+        RDFTriple q1 = new RDFTriple(VAR_X, PREDICATE_1, OBJECT_1);
+        RDFTriple q2 = new RDFTriple(VAR_X, PREDICATE_2, OBJECT_2);
+
+        List<RDFTriple> atoms = Arrays.asList(q1, q2);
+        Collection<Variable> answerVars = List.of(VAR_X);
+
+        StarQuery starQuery = new StarQuery("q_multi", atoms, answerVars);
+
+        Iterator<Substitution> it = store.match(starQuery);
+        List<Substitution> results = new ArrayList<>();
+        it.forEachRemaining(results::add);
+
+        // On doit avoir 2 réponses : ?x -> subject1 et ?x -> subject2
+        assertEquals(2, results.size(), "La star query doit retourner deux solutions.");
+
+        Substitution sigma1 = new SubstitutionImpl();
+        sigma1.add(VAR_X, SUBJECT_1);
+
+        Substitution sigma2 = new SubstitutionImpl();
+        sigma2.add(VAR_X, SUBJECT_2);
+
+        assertTrue(results.contains(sigma1), "La solution ?x -> subject1 doit être présente.");
+        assertTrue(results.contains(sigma2), "La solution ?x -> subject2 doit être présente.");
+    }
+
+        @Test
+        public void testMatchStarQuery_MultipleVariables() {
+        RDFHexaStore store = new RDFHexaStore();
+
+        // On réutilise les mêmes constantes pour la lisibilité
+        // s1 p1 o1
+        // s1 p2 o2
+        // s2 p1 o1
+        // s2 p2 o3
+        RDFTriple t1 = new RDFTriple(SUBJECT_1, PREDICATE_1, OBJECT_1);
+        RDFTriple t2 = new RDFTriple(SUBJECT_1, PREDICATE_2, OBJECT_2);
+        RDFTriple t3 = new RDFTriple(SUBJECT_2, PREDICATE_1, OBJECT_1);
+        RDFTriple t4 = new RDFTriple(SUBJECT_2, PREDICATE_2, OBJECT_3);
+
+        store.add(t1);
+        store.add(t2);
+        store.add(t3);
+        store.add(t4);
+
+        // StarQuery :
+        // ?x p1 ?y
+        // ?x p2 ?z
+        RDFTriple q1 = new RDFTriple(VAR_X, PREDICATE_1, VAR_Y);
+        RDFTriple q2 = new RDFTriple(VAR_X, PREDICATE_2, SameObjectTermFactory.instance().createOrGetVariable("?z"));
+
+        Variable VAR_Z = SameObjectTermFactory.instance().createOrGetVariable("?z");
+
+        List<RDFTriple> atoms = Arrays.asList(q1, q2);
+        Collection<Variable> answerVars = List.of(VAR_X, VAR_Y, VAR_Z);
+
+        StarQuery starQuery = new StarQuery("q_vars", atoms, answerVars);
+
+        Iterator<Substitution> it = store.match(starQuery);
+        List<Substitution> results = new ArrayList<>();
+        it.forEachRemaining(results::add);
+
+        // On doit obtenir deux solutions :
+        // 1) ?x = s1, ?y = o1, ?z = o2
+        // 2) ?x = s2, ?y = o1, ?z = o3
+        assertEquals(2, results.size(), "La star query doit retourner deux solutions.");
+
+        Substitution s1 = new SubstitutionImpl();
+        s1.add(VAR_X, SUBJECT_1);
+        s1.add(VAR_Y, OBJECT_1);
+        s1.add(VAR_Z, OBJECT_2);
+
+        Substitution s2 = new SubstitutionImpl();
+        s2.add(VAR_X, SUBJECT_2);
+        s2.add(VAR_Y, OBJECT_1);
+        s2.add(VAR_Z, OBJECT_3);
+
+        assertTrue(results.contains(s1), "La solution pour subject1 doit être présente.");
+        assertTrue(results.contains(s2), "La solution pour subject2 doit être présente.");
+    }
+
+        @Test
+        public void testMatchStarQuery_NoSolution() {
+        RDFHexaStore store = new RDFHexaStore();
+
+        // Données :
+        // s1 p1 o1
+        // s1 p2 o2
+        RDFTriple t1 = new RDFTriple(SUBJECT_1, PREDICATE_1, OBJECT_1);
+        RDFTriple t2 = new RDFTriple(SUBJECT_1, PREDICATE_2, OBJECT_2);
+
+        store.add(t1);
+        store.add(t2);
+
+        // Star incohérente :
+        // ?x p1 o1   (ok : ?x = s1)
+        // ?x p2 o1   (n'existe pas : p2,o1 n'est jamais ensemble)
+        RDFTriple q1 = new RDFTriple(VAR_X, PREDICATE_1, OBJECT_1);
+        RDFTriple q2 = new RDFTriple(VAR_X, PREDICATE_2, OBJECT_1); // objet différent de t2
+
+        List<RDFTriple> atoms = Arrays.asList(q1, q2);
+        Collection<Variable> answerVars = List.of(VAR_X);
+
+        StarQuery starQuery = new StarQuery("q_none", atoms, answerVars);
+
+        Iterator<Substitution> it = store.match(starQuery);
+        List<Substitution> results = new ArrayList<>();
+        it.forEachRemaining(results::add);
+
+        assertTrue(results.isEmpty(), "La star query doit retourner 0 solution car les branches sont incompatibles.");
+    }
+
 }
