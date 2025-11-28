@@ -191,6 +191,7 @@ public class RDFHexaStore implements RDFStorage {
         throw new UnsupportedOperationException("match(StarQuery) not implemented yet");
     }
 
+    // test de push
     @Override
     public long howMany(RDFTriple a) {
 
