@@ -186,10 +186,6 @@ public class RDFHexaStore implements RDFStorage {
         return out.iterator();
     }
 
-    @Override
-    public Iterator<Substitution> match(StarQuery q) {
-        throw new UnsupportedOperationException("match(StarQuery) not implemented yet");
-    }
 
     // test de push 2
     @Override

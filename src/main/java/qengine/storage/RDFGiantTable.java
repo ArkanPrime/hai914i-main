@@ -52,8 +52,6 @@ public class RDFGiantTable implements RDFStorage {
         return out.iterator();
     }
 
-    @Override public Iterator<Substitution> match(StarQuery q) { throw new UnsupportedOperationException(); }
-
     @Override
     public long howMany(RDFTriple a) {
         long c = 0;
