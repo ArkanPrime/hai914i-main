@@ -10,9 +10,7 @@ import org.junit.jupiter.api.Test;
 import qengine.model.RDFTriple;
 import qengine.model.StarQuery;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -130,10 +128,45 @@ class RDFGiantTableTest {
     }
 
     @Test
-    void testMatchStarQueryUnsupported() {
-        RDFGiantTable store = new RDFGiantTable();
-        // On passe null car l'implémentation actuelle jette l'exception indépendamment du contenu.
-        assertThrows(UnsupportedOperationException.class, () -> store.match((StarQuery) null),
-                "match(StarQuery) doit lancer UnsupportedOperationException pour cette implémentation");
+    public void testMatchStarQuery() {
+        RDFHexaStore store = new RDFHexaStore();
+
+        // --- Données dans le store ---
+        // subject1 predicate1 object1
+        // subject1 predicate2 object2
+        // subject2 predicate1 object1
+        RDFTriple t1 = new RDFTriple(SUBJECT_1, PREDICATE_1, OBJECT_1);
+        RDFTriple t2 = new RDFTriple(SUBJECT_1, PREDICATE_2, OBJECT_2);
+        RDFTriple t3 = new RDFTriple(SUBJECT_2, PREDICATE_1, OBJECT_1);
+
+        store.add(t1);
+        store.add(t2);
+        store.add(t3);
+
+        // --- StarQuery : centre ?x ---
+        // ?x predicate1 object1
+        // ?x predicate2 object2
+        RDFTriple q1 = new RDFTriple(VAR_X, PREDICATE_1, OBJECT_1);
+        RDFTriple q2 = new RDFTriple(VAR_X, PREDICATE_2, OBJECT_2);
+
+        List<RDFTriple> atoms = Arrays.asList(q1, q2);
+        Collection<Variable> answerVars = List.of(VAR_X);
+
+        StarQuery starQuery = new StarQuery("q1", atoms, answerVars);
+
+        // --- Exécution de la requête en étoile ---
+        Iterator<Substitution> it = store.match(starQuery);
+        List<Substitution> results = new ArrayList<>();
+        it.forEachRemaining(results::add);
+
+        // On s'attend à UNE seule substitution : ?x -> subject1
+        assertEquals(1, results.size(), "On doit trouver exactement une réponse à la star query.");
+
+        Substitution expected = new SubstitutionImpl();
+        expected.add(VAR_X, SUBJECT_1);
+
+        assertTrue(results.contains(expected),
+                "La substitution attendue (?x -> subject1) doit être présente parmi les résultats.");
     }
+
 }
