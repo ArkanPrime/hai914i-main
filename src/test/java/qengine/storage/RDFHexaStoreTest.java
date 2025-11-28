@@ -129,6 +129,63 @@ public class RDFHexaStoreTest {
 
     }
 
+        @Test
+    public void testHowMany() {
+        RDFHexaStore store = new RDFHexaStore();
+
+        // t1 : s1 p1 o1
+        RDFTriple t1 = new RDFTriple(SUBJECT_1, PREDICATE_1, OBJECT_1);
+        // t2 : s1 p1 o2
+        RDFTriple t2 = new RDFTriple(SUBJECT_1, PREDICATE_1, OBJECT_2);
+        // t3 : s1 p2 o2
+        RDFTriple t3 = new RDFTriple(SUBJECT_1, PREDICATE_2, OBJECT_2);
+        // t4 : s2 p1 o1
+        RDFTriple t4 = new RDFTriple(SUBJECT_2, PREDICATE_1, OBJECT_1);
+
+        store.add(t1);
+        store.add(t2);
+        store.add(t3);
+        store.add(t4);
+
+        assertEquals(1,
+                store.howMany(new RDFTriple(SUBJECT_1, PREDICATE_1, OBJECT_1)),
+                "should count exactly 1 existing triple");
+
+        assertEquals(0,
+                store.howMany(new RDFTriple(SUBJECT_1, PREDICATE_2, OBJECT_3)),
+                "non existing triple should give 0");
+
+        assertEquals(2,
+                store.howMany(new RDFTriple(SUBJECT_1, PREDICATE_1, VAR_X)),
+                "(s1,p1,?x) should match 2 triples");
+
+        assertEquals(2,
+                store.howMany(new RDFTriple(VAR_X, PREDICATE_1, OBJECT_1)),
+                "(?x,p1,o1) should match 2 triples");
+
+        assertEquals(2,
+                store.howMany(new RDFTriple(SUBJECT_1, VAR_X, OBJECT_2)),
+                "(s1,?p,o2) should match 2 triples");
+
+
+        assertEquals(3,
+                store.howMany(new RDFTriple(SUBJECT_1, VAR_X, VAR_Y)),
+                "(s1,?p,?o) should match 3 triples");
+
+        assertEquals(3,
+                store.howMany(new RDFTriple(VAR_X, PREDICATE_1, VAR_Y)),
+                "(?s,p1,?o) should match 3 triples");
+
+        assertEquals(2,
+                store.howMany(new RDFTriple(VAR_X, VAR_Y, OBJECT_2)),
+                "(?s,?p,o2) should match 2 triples");
+
+        assertEquals(4,
+                store.howMany(new RDFTriple(VAR_X, VAR_Y, VAR_X)),
+                "all variables should count all stored triples");
+    }
+
+
     @Test
     public void testMatchStarQuery() {
         throw new NotImplementedException();
