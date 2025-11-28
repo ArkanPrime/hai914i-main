@@ -187,7 +187,6 @@ public class RDFHexaStore implements RDFStorage {
     }
 
 
-    // test de push 2
     @Override
     public long howMany(RDFTriple a) {
 
