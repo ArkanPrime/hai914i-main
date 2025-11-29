@@ -22,9 +22,5 @@ public final class Dictionary {
     public Term decode(int id) { return idToTerm.get(id); }
     public int size() { return termToId.size(); }
 
-    public void clear() {
-        termToId.clear();
-        idToTerm.clear();
-        nextId = 1;
-    }
+
 }
