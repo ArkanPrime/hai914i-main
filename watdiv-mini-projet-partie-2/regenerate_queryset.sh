@@ -1,18 +1,20 @@
 #!/bin/bash
+set -euo pipefail
 
 # dossiers
 QUERY_DIR="testsuite/queries"
 DATA_DIR="../data"
 
-mkdir -p "$QUERY_DIR"
-mkdir -p "$DATA_DIR"
+mkdir -p "$QUERY_DIR" "$DATA_DIR"
 
-# génération + déduplication
 for qt in testsuite/templates/*.sparql-template; do
   qt2=${qt##*templates/}
+
+  [[ "$qt2" == *"_10000"* ]] && continue
+
   out="$QUERY_DIR/${qt2%.sparql-template}.queryset"
 
-  echo "Génération : $qt2"
+  echo "Génération (normal) : $qt2"
 
   bin/Release/watdiv -q model/wsdbm-data-model.txt "$qt" 1000 1 |
   awk '
@@ -32,14 +34,7 @@ for qt in testsuite/templates/*.sparql-template; do
   ' > "$out"
 done
 
-# concaténation sans _10000
 find "$QUERY_DIR" -type f -name "*.queryset" ! -name "*_10000*" \
   -exec cat {} + > "$DATA_DIR/all_queries.queryset"
 
-# concaténation avec _10000 uniquement
-find "$QUERY_DIR" -type f -name "*.queryset" -name "*_10000*" \
-  -exec cat {} + > "$DATA_DIR/all_queries_10000.queryset"
-
-echo "Fichiers créés :"
-echo " - data/all_queries.queryset"
-echo " - data/all_queries_10000.queryset"
+echo "Fichier créé : $DATA_DIR/all_queries.queryset"
