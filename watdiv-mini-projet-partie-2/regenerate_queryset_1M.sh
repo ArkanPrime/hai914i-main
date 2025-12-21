@@ -29,3 +29,5 @@ find "$QUERY_DIR" -type f -name "*_10000.queryset" \
   -exec cat {} + > "$DATA_DIR/all_queries_10000.queryset"
 
 echo "Fichier créé : $DATA_DIR/all_queries_10000.queryset"
+awk 'BEGIN{RS=""; c=0} {c++} END{print "Total queries (global) :", c}' \
+  "$DATA_DIR/all_queries_10000.queryset"
