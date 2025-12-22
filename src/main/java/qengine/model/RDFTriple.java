@@ -17,7 +17,7 @@ public class RDFTriple extends AtomImpl {
     public static final Predicate TRIPLE_PREDICATE =
             SameObjectPredicateFactory.instance().createOrGetPredicate("triple", 3);
     /**
-     * Constructeur d'un triplet RDF.
+     * Constructeur d'un Atriplet RDF.
      *
      * @param a les trois termes du triplet RDF (sujet, prédicat, objet)
      * @throws IllegalArgumentException si le nombre de termes n'est pas égal à 3
