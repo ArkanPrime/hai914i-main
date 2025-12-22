@@ -1,13 +1,24 @@
 package qengine.program;
 
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+
+import org.eclipse.rdf4j.rio.RDFFormat;
+
 import fr.boreal.model.formula.api.FOFormula;
-import fr.boreal.model.formula.api.FOFormulaConjunction;
 import fr.boreal.model.kb.api.FactBase;
 import fr.boreal.model.logicalElements.api.Substitution;
 import fr.boreal.model.queryEvaluation.api.FOQueryEvaluator;
 import fr.boreal.query_evaluation.generic.GenericFOQueryEvaluator;
 import fr.boreal.storage.natives.SimpleInMemoryGraphStore;
-import org.eclipse.rdf4j.rio.RDFFormat;
 import qengine.model.RDFTriple;
 import qengine.model.StarQuery;
 import qengine.parser.RDFTriplesParser;
@@ -15,18 +26,10 @@ import qengine.parser.StarQuerySparQLParser;
 import qengine.storage.RDFHexaStore;
 import qengine.storage.RDFStorage;
 
-import java.io.BufferedWriter;
-import java.io.FileReader;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.*;
-
 public final class Benchmark {
 
     // ===== DATA =====
-    private static final String DATA_FILE = "data/data.nt";
+    private static final String DATA_FILE = "data/100K.nt";
 
     // ===== QUERY FILES =====
     private static final String[] QUERY_FILES = {
