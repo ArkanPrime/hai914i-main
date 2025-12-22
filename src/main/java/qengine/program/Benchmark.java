@@ -1,5 +1,6 @@
 package qengine.program;
 
+import fr.boreal.model.logicalElements.api.Substitution;
 import qengine.model.RDFTriple;
 import qengine.model.StarQuery;
 import qengine.parser.RDFTriplesParser;
@@ -7,167 +8,339 @@ import qengine.parser.StarQuerySparQLParser;
 import qengine.storage.RDFHexaStore;
 import qengine.storage.RDFStorage;
 
-import fr.boreal.model.logicalElements.api.Substitution;
-import org.eclipse.rdf4j.rio.RDFFormat;
-
-import java.io.FileReader;
+import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Stream;
 
 public final class Benchmark {
 
-    private static final String WORKING_DIR = "data/";
-    private static final String DATA_FILE = WORKING_DIR + "data.nt";
-    private static final String QUERY_FILE = WORKING_DIR + "all_queries.queryset";
-    private static final String QUERY_FILE_10000 = WORKING_DIR + "all_queries_10000.queryset";
+    // ===== DATA =====
+    private static final String DATA_FILE = "data/data.nt";
 
-    // stabilité benchmark
-    private static final int WARMUP_QUERIES = 50;
-    private static final int MEASURE_RUNS = 5;
-    private static final long SHUFFLE_SEED = 42L;
+    // ===== QUERY FILES =====
+    private static final String[] QUERY_FILES = {
+            "data/all_queries.queryset",
+            "data/all_queries_10000.queryset"
+    };
 
-    public static void main(String[] args) throws IOException {
+    // ===== OUTPUT NAMES =====
+    private static final String CSV_PREFIX = "benchmark_compare_";
+    private static final String ZERO_HEXA_PREFIX = "zero_queries_HEXA_";
+    private static final String ZERO_INTEGRAAL_PREFIX = "zero_queries_INTEGRAAL_";
 
-        // 1) Charger les données
+    private enum Engine { HEXA, INTEGRAAL }
+
+    private static final class Row {
+        final int queryId;
+        final Engine engine;
+        final int starSize;
+        final long answers;
+        final long execNs;
+
+        Row(int q, Engine e, int s, long a, long t) {
+            queryId = q;
+            engine = e;
+            starSize = s;
+            answers = a;
+            execNs = t;
+        }
+    }
+
+    // ===== MAIN =====
+    public static void main(String[] args) throws Exception {
+
+        // ---- Load DATA ONCE ----
         long t0 = System.nanoTime();
-        List<RDFTriple> triples = parseRDFData(DATA_FILE);
-        long t1 = System.nanoTime();
-        System.out.printf("Data loaded: %,d triples in %.3f s%n", triples.size(), (t1 - t0) / 1e9);
+        List<RDFTriple> triples = loadTriples(DATA_FILE);
+        long parseDataNs = System.nanoTime() - t0;
 
-        // 2) Construire le store
-        RDFStorage store = new RDFHexaStore();
+        System.out.printf(
+                "Triples: %,d loaded in %.3f s%n",
+                triples.size(), parseDataNs / 1e9
+        );
 
-        long t2 = System.nanoTime();
-        for (RDFTriple t : triples) store.add(t);
-        long t3 = System.nanoTime();
-        System.out.printf("Store built in %.3f s%n", (t3 - t2) / 1e9);
+        // ---- Build HEXA ----
+        RDFStorage hexa = new RDFHexaStore();
+        long tHexa0 = System.nanoTime();
+        for (RDFTriple t : triples) hexa.add(t);
+        long buildHexaNs = System.nanoTime() - tHexa0;
 
-        // 3) Benchmarks
-        runBenchmark("ALL_QUERIES", QUERY_FILE, store);
-        runBenchmark("ALL_QUERIES_10000", QUERY_FILE_10000, store);
-    }
+        System.out.printf("HEXA built in %.3f s%n", buildHexaNs / 1e9);
 
-    private static void runBenchmark(String label, String queryFilePath, RDFStorage store) throws IOException {
+        // ---- Build INTEGRAAL ----
+        IntegraalRuntime ig = IntegraalRuntime.tryInit();
+        long buildIgNs = -1;
 
-        // --- parsing queries ---
-        long tParse0 = System.nanoTime();
-        List<StarQuery> queries = parseSparQLQueries(queryFilePath);
-        long tParse1 = System.nanoTime();
-        double parseSec = (tParse1 - tParse0) / 1e9;
-
-        // shuffle reproductible (évite un biais d'ordre)
-        Collections.shuffle(queries, new Random(SHUFFLE_SEED));
-
-        // warmup JVM
-        int warmup = Math.min(WARMUP_QUERIES, queries.size());
-        for (int i = 0; i < warmup; i++) {
-            // warmup sans mesure fine
-            drain(store.match(queries.get(i)));
+        if (ig.available) {
+            long tIg0 = System.nanoTime();
+            for (RDFTriple t : triples) ig.addFact(t);
+            buildIgNs = System.nanoTime() - tIg0;
+            System.out.printf("INTEGRAAL built in %.3f s%n", buildIgNs / 1e9);
+        } else {
+            System.out.println("INTEGRAAL unavailable: " + ig.whyUnavailable);
         }
 
-        // --- runs de mesure (stabilité) : temps total uniquement ---
-        double[] runTotalMs = new double[MEASURE_RUNS];
-        for (int r = 0; r < MEASURE_RUNS; r++) {
-            long start = System.nanoTime();
-            for (StarQuery q : queries) {
-                drain(store.match(q));
-            }
-            long end = System.nanoTime();
-            runTotalMs[r] = (end - start) / 1e6;
+        // ---- RUN BENCHMARK FOR EACH QUERY FILE ----
+        for (String queryFile : QUERY_FILES) {
+            runBenchmarkForQueryFile(
+                    queryFile,
+                    hexa,
+                    ig,
+                    triples.size(),
+                    parseDataNs,
+                    buildHexaNs,
+                    buildIgNs
+            );
         }
 
-        double minMs = Arrays.stream(runTotalMs).min().orElse(0);
-        double maxMs = Arrays.stream(runTotalMs).max().orElse(0);
-        double medMs = median(runTotalMs);
-
-        // --- run "profiling" : mesures par requête + CSV (bufferisé) ---
-        ProfileSummary prof = profileAndExport(label, queries, store);
-
-        // --- résumé console ---
-        System.out.println();
-        System.out.println("===== BENCHMARK " + label + " =====");
-        System.out.printf("Query file: %s%n", queryFilePath);
-        System.out.printf("Queries parsed: %,d%n", queries.size());
-        System.out.printf("Parsing time: %.3f s (%.3f ms/query)%n",
-                parseSec, queries.isEmpty() ? 0.0 : (parseSec * 1000) / queries.size());
-
-        System.out.printf("Execution runs (ms) over %d runs: min=%.3f  median=%.3f  max=%.3f%n",
-                MEASURE_RUNS, minMs, medMs, maxMs);
-
-        System.out.printf("Profiling run: total=%.3f ms (avg %.3f ms/query)%n",
-                prof.totalMs, queries.isEmpty() ? 0.0 : prof.totalMs / queries.size());
-
-        System.out.printf("Total answers: %,d%n", prof.totalAnswers);
-        System.out.printf("Zero-answer queries: %,d (%.2f%%)%n",
-                prof.zeroAnswerQueries,
-                queries.isEmpty() ? 0.0 : (100.0 * prof.zeroAnswerQueries) / queries.size());
-
-        System.out.println("Per-query CSV: " + prof.csvPath.toAbsolutePath());
-        System.out.println("===================================");
+        System.out.println("All benchmarks finished.");
     }
 
-    private static ProfileSummary profileAndExport(String label, List<StarQuery> queries, RDFStorage store) throws IOException {
-        Path perQueryCsv = Path.of("benchmark_per_query_" + label + ".csv");
+    // ===== BENCHMARK PER QUERY FILE =====
+    private static void runBenchmarkForQueryFile(
+            String queryFile,
+            RDFStorage hexa,
+            IntegraalRuntime ig,
+            int nTriples,
+            long parseDataNs,
+            long buildHexaNs,
+            long buildIgNs
+    ) throws Exception {
 
-        StringBuilder sb = new StringBuilder(Math.max(1024, queries.size() * 64));
-        sb.append("query_id,star_size,answers,match_ms,drain_ms,total_ms\n");
+        String tag = queryFile.contains("10000") ? "10000" : "all";
 
-        long totalAnswers = 0;
-        long zeroAnswerQueries = 0;
+        System.out.println("\n=== Benchmark: " + queryFile + " ===");
 
-        long execStart = System.nanoTime();
+        // ---- Load QUERIES ----
+        long tq0 = System.nanoTime();
+        List<StarQuery> queries = loadQueries(queryFile);
+        long parseQueriesNs = System.nanoTime() - tq0;
+
+        System.out.printf(
+                "Queries: %,d loaded in %.3f s%n",
+                queries.size(), parseQueriesNs / 1e9
+        );
+
+        List<Row> rows = new ArrayList<>();
+        List<Integer> zeroHexa = new ArrayList<>();
+        List<Integer> zeroIg = new ArrayList<>();
 
         for (int i = 0; i < queries.size(); i++) {
             StarQuery q = queries.get(i);
-            int starSize = safeStarSize(q);
+            int starSize = q.getRdfAtoms().size();
 
-            long t0 = System.nanoTime();
-            Iterator<Substitution> it = store.match(q);
-            long t1 = System.nanoTime();
-            long answers = drain(it);
-            long t2 = System.nanoTime();
+            // ---- HEXA ----
+            long h0 = System.nanoTime();
+            Iterator<Substitution> hit = hexa.match(q);
+            long hAns;
+            if (!hit.hasNext()) {
+                hAns = 0;
+            } else {
+                hit.next();
+                hAns = 1 + drain(hit);
+            }
+            long hNs = System.nanoTime() - h0;
 
-            double matchMs = (t1 - t0) / 1e6;
-            double drainMs = (t2 - t1) / 1e6;
-            double totalMs = (t2 - t0) / 1e6;
+            rows.add(new Row(i, Engine.HEXA, starSize, hAns, hNs));
+            if (hAns == 0) zeroHexa.add(i);
 
-            totalAnswers += answers;
-            if (answers == 0) zeroAnswerQueries++;
+            // ---- INTEGRAAL ----
+            if (ig.available) {
+                Object fo = q.asFOQuery();
+                long ig0 = System.nanoTime();
+                long igAns = ig.countAnswersFastZero(fo);
+                long igNs = System.nanoTime() - ig0;
 
-            sb.append(i).append(',')
-                    .append(starSize).append(',')
-                    .append(answers).append(',')
-                    .append(formatMs(matchMs)).append(',')
-                    .append(formatMs(drainMs)).append(',')
-                    .append(formatMs(totalMs)).append('\n');
+                rows.add(new Row(i, Engine.INTEGRAAL, starSize, igAns, igNs));
+                if (igAns == 0) zeroIg.add(i);
+            }
+
+            if (i % 500 == 0 && i > 0) {
+                System.out.printf("Progress (%s): %d / %d%n",
+                        tag, i, queries.size());
+            }
         }
 
-        long execEnd = System.nanoTime();
-        double execTotalMs = (execEnd - execStart) / 1e6;
+        // ---- WRITE OUTPUTS ----
+        writeCsv(
+                CSV_PREFIX + tag + ".csv",
+                rows,
+                nTriples,
+                queries.size(),
+                parseDataNs,
+                parseQueriesNs,
+                buildHexaNs,
+                buildIgNs,
+                ig.available
+        );
 
-        Files.writeString(perQueryCsv, sb.toString(), StandardCharsets.UTF_8);
+        writeList(ZERO_HEXA_PREFIX + tag + ".txt", zeroHexa);
+        writeList(ZERO_INTEGRAAL_PREFIX + tag + ".txt", zeroIg);
 
-        return new ProfileSummary(perQueryCsv, execTotalMs, totalAnswers, zeroAnswerQueries);
+        System.out.println("Done: " + tag);
     }
 
-    private static String formatMs(double v) {
-        return String.format(Locale.US, "%.3f", v);
+    // ===== CSV =====
+    private static void writeCsv(
+            String outFile,
+            List<Row> rows,
+            int nTriples,
+            int nQueries,
+            long parseDataNs,
+            long parseQueriesNs,
+            long buildHexaNs,
+            long buildIgNs,
+            boolean igEnabled
+    ) throws IOException {
+
+        try (BufferedWriter w =
+                     Files.newBufferedWriter(Path.of(outFile), StandardCharsets.UTF_8)) {
+
+            w.write("# triples=" + nTriples + "\n");
+            w.write("# queries=" + nQueries + "\n");
+            w.write(String.format(Locale.ROOT,
+                    "# parse_data_ms=%.3f%n", parseDataNs / 1e6));
+            w.write(String.format(Locale.ROOT,
+                    "# parse_queries_ms=%.3f%n", parseQueriesNs / 1e6));
+            w.write(String.format(Locale.ROOT,
+                    "# build_hexa_ms=%.3f%n", buildHexaNs / 1e6));
+            w.write(igEnabled
+                    ? String.format(Locale.ROOT,
+                    "# build_integraal_ms=%.3f%n", buildIgNs / 1e6)
+                    : "# build_integraal_ms=NA\n");
+
+            w.write("query_id,engine,star_size,answers,exec_ms\n");
+
+            for (Row r : rows) {
+                w.write(String.format(Locale.ROOT,
+                        "%d,%s,%d,%d,%.6f%n",
+                        r.queryId,
+                        r.engine,
+                        r.starSize,
+                        r.answers,
+                        r.execNs / 1e6));
+            }
+        }
     }
 
-    private static double median(double[] a) {
-        double[] b = Arrays.copyOf(a, a.length);
-        Arrays.sort(b);
-        int n = b.length;
-        if (n == 0) return 0.0;
-        if (n % 2 == 1) return b[n / 2];
-        return (b[n / 2 - 1] + b[n / 2]) / 2.0;
+    // ===== Integraal Runtime =====
+    private static final class IntegraalRuntime {
+        boolean available;
+        String whyUnavailable;
+        Object atomSet;
+        Method atomSetAdd;
+        Object evaluator;
+        List<Method> evalMethods;
+
+        static IntegraalRuntime tryInit() {
+            try {
+                IntegraalRuntime r = new IntegraalRuntime();
+
+                Class<?> sb =
+                        Class.forName("fr.boreal.storage.builder.StorageBuilder");
+                r.atomSet =
+                        sb.getMethod("getDefaultInMemoryAtomSet").invoke(null);
+
+                for (Method m : r.atomSet.getClass().getMethods()) {
+                    if (m.getName().equals("add")) {
+                        r.atomSetAdd = m;
+                        break;
+                    }
+                }
+
+                Class<?> ev =
+                        Class.forName(
+                                "fr.boreal.query_evaluation.generic.DefaultGenericQueryEvaluator");
+                r.evaluator =
+                        ev.getMethod("defaultInstance").invoke(null);
+
+                r.evalMethods = new ArrayList<>();
+                for (Method m : r.evaluator.getClass().getMethods()) {
+                    if (m.getName().equals("evaluate")) {
+                        r.evalMethods.add(m);
+                    }
+                }
+
+                r.available = true;
+                return r;
+
+            } catch (Throwable t) {
+                IntegraalRuntime r = new IntegraalRuntime();
+                r.available = false;
+                r.whyUnavailable = t.getMessage();
+                return r;
+            }
+        }
+
+        void addFact(Object atom) throws Exception {
+            atomSetAdd.invoke(atomSet, atom);
+        }
+
+        long countAnswersFastZero(Object foQuery) throws Exception {
+            for (Method m : evalMethods) {
+                try {
+                    Object res = m.invoke(evaluator, foQuery, atomSet);
+                    if (res instanceof Stream<?> s) {
+                        Iterator<?> it = s.iterator();
+                        if (!it.hasNext()) return 0;
+                        long c = 1;
+                        it.next();
+                        while (it.hasNext()) {
+                            it.next();
+                            c++;
+                        }
+                        s.close();
+                        return c;
+                    }
+                } catch (IllegalArgumentException ignored) {}
+            }
+            return 0;
+        }
     }
 
-    private static long drain(Iterator<Substitution> it) {
+    // ===== Helpers =====
+    private static List<RDFTriple> loadTriples(String path) throws IOException {
+        List<RDFTriple> triples = new ArrayList<>();
+        try (RDFTriplesParser p = new RDFTriplesParser(new File(path))) {
+            while (p.hasNext()) {
+                triples.add(p.next());
+            }
+        }
+        return triples;
+    }
+
+    // WatDiv: each query starts with SELECT
+    private static List<StarQuery> loadQueries(String path) throws IOException {
+        List<StarQuery> qs = new ArrayList<>();
+        String content = Files.readString(Path.of(path));
+
+        for (String block : content.split("(?=SELECT)")) {
+            block = block.trim();
+            if (block.isEmpty()) continue;
+
+            Path tmp = Files.createTempFile("q", ".sparql");
+            Files.writeString(tmp, block, StandardCharsets.UTF_8);
+
+            try (StarQuerySparQLParser p =
+                         new StarQuerySparQLParser(tmp.toString())) {
+                if (p.hasNext()) {
+                    qs.add((StarQuery) p.next());
+                }
+            } catch (Exception ignored) {
+            } finally {
+                Files.deleteIfExists(tmp);
+            }
+        }
+        return qs;
+    }
+
+    private static long drain(Iterator<?> it) {
         long c = 0;
         while (it.hasNext()) {
             it.next();
@@ -176,89 +349,14 @@ public final class Benchmark {
         return c;
     }
 
-    private static List<RDFTriple> parseRDFData(String rdfFilePath) throws IOException {
-        List<RDFTriple> rdfAtoms = new ArrayList<>();
-        try (RDFTriplesParser parser =
-                     new RDFTriplesParser(new FileReader(rdfFilePath), RDFFormat.NTRIPLES)) {
-            while (parser.hasNext()) rdfAtoms.add(parser.next());
-        }
-        return rdfAtoms;
-    }
-
-    private static List<StarQuery> parseSparQLQueries(String queryFilePath) throws IOException {
-        List<StarQuery> starQueries = new ArrayList<>();
-        String content = Files.readString(Path.of(queryFilePath));
-
-        List<String> blocks = new ArrayList<>(List.of(content.split("\\R\\s*\\R\\s*\\R")));
-        List<String> finalBlocks = new ArrayList<>();
-
-        for (String b : blocks) {
-            String trimmed = b.trim();
-            if (trimmed.isEmpty()) continue;
-
-            String[] sub = trimmed.split("}\\s*(?=SELECT\\b)");
-            for (String s : sub) {
-                String piece = s.trim();
-                if (piece.isEmpty()) continue;
-                if (!piece.endsWith("}")) piece = piece + " }";
-                finalBlocks.add(piece);
+    private static void writeList(String file, List<Integer> ids)
+            throws IOException {
+        try (BufferedWriter w =
+                     Files.newBufferedWriter(Path.of(file),
+                             StandardCharsets.UTF_8)) {
+            for (int i : ids) {
+                w.write(i + "\n");
             }
         }
-
-        int invalid = 0;
-        for (String q : finalBlocks) {
-            String queryText = q.trim();
-            if (queryText.isEmpty()) continue;
-
-            Path tmp = Files.createTempFile("query_", ".sparql");
-            Files.writeString(tmp, queryText, StandardCharsets.UTF_8);
-
-            try (StarQuerySparQLParser parser = new StarQuerySparQLParser(tmp.toString())) {
-                if (parser.hasNext()) {
-                    var query = parser.next();
-                    if (query instanceof StarQuery sq) starQueries.add(sq);
-                }
-            } catch (RuntimeException e) {
-                invalid++;
-            } finally {
-                Files.deleteIfExists(tmp);
-            }
-        }
-
-        if (invalid > 0) {
-            System.err.printf("WARNING: %d invalid queries skipped in %s%n", invalid, queryFilePath);
-        }
-
-        return starQueries;
     }
-
-    /**
-     * On essaie de récupérer la taille de l'étoile sans dépendre d'une API précise.
-     * Si on ne trouve pas, on renvoie -1.
-     */
-    private static int safeStarSize(StarQuery q) {
-        // essaie méthodes courantes via reflection (getTriples / getAtoms / size)
-        try {
-            Method m = q.getClass().getMethod("getTriples");
-            Object res = m.invoke(q);
-            if (res instanceof Collection<?> c) return c.size();
-        } catch (Exception ignored) { }
-
-        try {
-            Method m = q.getClass().getMethod("getAtoms");
-            Object res = m.invoke(q);
-            if (res instanceof Collection<?> c) return c.size();
-        } catch (Exception ignored) { }
-
-        try {
-            Method m = q.getClass().getMethod("size");
-            Object res = m.invoke(q);
-            if (res instanceof Integer i) return i;
-            if (res instanceof Number n) return n.intValue();
-        } catch (Exception ignored) { }
-
-        return -1;
-    }
-
-    private record ProfileSummary(Path csvPath, double totalMs, long totalAnswers, long zeroAnswerQueries) { }
 }
