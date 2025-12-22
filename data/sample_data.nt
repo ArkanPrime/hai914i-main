@@ -1,3 +1,7 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:1db3b260bb37077eb947eed92bae9a5067839b98f1c17b15ed77697f86031c7d
-size 2148
+<http://db.uwaterloo.ca/~galuc/wsdbm/User0>	<http://schema.org/birthDate>	"1988-09-24" .
+<http://db.uwaterloo.ca/~galuc/wsdbm/User0>	<http://db.uwaterloo.ca/~galuc/wsdbm/userId>	"9764726" .
+<http://db.uwaterloo.ca/~galuc/wsdbm/User1>	<http://db.uwaterloo.ca/~galuc/wsdbm/userId>	"2536508" .
+<http://db.uwaterloo.ca/~galuc/wsdbm/User2>	<http://db.uwaterloo.ca/~galuc/wsdbm/userId>	"5196173" .
+<http://db.uwaterloo.ca/~galuc/wsdbm/User3>	<http://schema.org/birthDate>	"1995-12-23" .
+<http://db.uwaterloo.ca/~galuc/wsdbm/User3>	<http://db.uwaterloo.ca/~galuc/wsdbm/userId>	"2019349" .
+<http://db.uwaterloo.ca/~galuc/wsdbm/User4>	<http://schema.org/birthDate>	"1982-07-28" .
